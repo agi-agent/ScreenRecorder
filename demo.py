@@ -279,17 +279,27 @@ class DiscreteScreenFilter:
             
             # Hide window
             self.root.withdraw()
-            time.sleep(0.3)
+            self.root.update()
+            time.sleep(0.5)
             
             # Take screenshot
             screenshot = pyautogui.screenshot()
             print(f"Initial screenshot captured: {screenshot.size}")
+            # Calculate screen ratio if not already calculated
+            if not hasattr(self, 'screen_ratio'):
+                self.screen_ratio = screenshot.size[0] // self.width
+                print(f"Screen ratio: {self.screen_ratio}")            
             
             # Show window
             self.root.deiconify()
             
             # Process and display
-            screenshot = screenshot.resize((self.width, self.height), Image.Resampling.LANCZOS)
+            # screenshot = screenshot.resize((self.width, self.height), Image.Resampling.LANCZOS)
+            scaled_width = screenshot.size[0] // self.screen_ratio
+            scaled_height = screenshot.size[1] // self.screen_ratio
+            screenshot = screenshot.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
+            print(f"Scaled screenshot size: {screenshot.size}")
+
             self.photo = ImageTk.PhotoImage(screenshot)
             self.canvas.delete("all")
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
@@ -328,7 +338,8 @@ class DiscreteScreenFilter:
             
             # Hide window
             self.root.withdraw()
-            time.sleep(0.3)
+            self.root.update()
+            time.sleep(0.5)
             
             # Take screenshot
             screenshot = pyautogui.screenshot()
@@ -337,7 +348,12 @@ class DiscreteScreenFilter:
             self.root.deiconify()
             
             # Process and display new screenshot
-            screenshot = screenshot.resize((self.width, self.height), Image.Resampling.LANCZOS)
+            # screenshot = screenshot.resize((self.width, self.height), Image.Resampling.LANCZOS)
+            scaled_width = screenshot.size[0] // self.screen_ratio
+            scaled_height = screenshot.size[1] // self.screen_ratio
+            screenshot = screenshot.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
+            print(f"Scaled screenshot size: {screenshot.size}")
+
             self.photo = ImageTk.PhotoImage(screenshot)
             self.canvas.delete("all")
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
