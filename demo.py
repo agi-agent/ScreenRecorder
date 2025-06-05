@@ -2,6 +2,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import pyautogui
 import sys
+import os
 import time
 import threading
 import queue
@@ -84,6 +85,16 @@ class DiscreteScreenFilter:
                     return True
                 elif key == keyboard.Key.tab:
                     print("Tab pressed, forwarding will now begin.")
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"tmp_{timestamp}.log"
+                    try:
+                        with open(filename, 'w', encoding='utf-8') as f:
+                            with self.event_queue.mutex:  # 安全访问 queue
+                                for event in list(self.event_queue.queue):
+                                    f.write(f"{event}\n")
+                        print(f"✅ Saved queue to {filename}")
+                    except Exception as e:
+                        print(f"❌ Failed to save queue: {e}")
                     self.root.withdraw()
                     self.allow_forwarding = True
                     return True
@@ -265,10 +276,10 @@ class DiscreteScreenFilter:
 
                     # print(f"Queue before removing: {list(self.event_queue.queue)}")
                     if self.allow_forwarding:
-                        print(f"Allow forwarding: {self.allow_forwarding}")
+                        # print(f"Allow forwarding: {self.allow_forwarding}")
                         event_type, event_data = self.event_queue.get(timeout=0.1)
-                        print(f"Dequeued: ({event_type}, {event_data})")
-                        print(f"Queue after removing: {list(self.event_queue.queue)}")
+                        # print(f"Dequeued: ({event_type}, {event_data})")
+                        # print(f"Queue after removing: {list(self.event_queue.queue)}")
                     
                         if event_type == 'mouse_click':
                             self.forward_mouse_click(event_data)
