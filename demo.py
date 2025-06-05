@@ -13,6 +13,9 @@ def log_queue(msg):
 
 class DiscreteScreenFilter:
     def enqueue_event(self, event_type, event_data):
+        if self.allow_forwarding:
+            log_queue("Skipping enqueue: forwarding in progress")
+            return
         log_queue(f"Queue before adding: {list(self.event_queue.queue)}")
         self.event_queue.put((event_type, event_data))
         log_queue(f"Queue after adding: {list(self.event_queue.queue)}")
@@ -81,6 +84,7 @@ class DiscreteScreenFilter:
                     return True
                 elif key == keyboard.Key.tab:
                     print("Tab pressed, forwarding will now begin.")
+                    self.root.withdraw()
                     self.allow_forwarding = True
                     return True
                 elif key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
@@ -106,6 +110,9 @@ class DiscreteScreenFilter:
 
             if self.handle_control_keys_pynput(key, press=True):
                 return
+        
+            if self.allow_forwarding:
+                return
 
             self.enqueue_event('key', {
                 'key': key_str,
@@ -121,6 +128,9 @@ class DiscreteScreenFilter:
                 key_str = str(key)
 
             if self.handle_control_keys_pynput(key, press=False):
+                return
+        
+            if self.allow_forwarding:
                 return
 
             self.enqueue_event('key', {
@@ -157,6 +167,9 @@ class DiscreteScreenFilter:
             
         # Check for our control keys first
         if self.is_control_click(event):
+            return
+        
+        if self.allow_forwarding:
             return
             
         # For clicks, use the current mouse position instead of event position
@@ -264,9 +277,11 @@ class DiscreteScreenFilter:
                         elif event_type == 'key':
                             self.forward_key_event(event_data)
 
-                    if self.event_queue.empty():
+                    if self.event_queue.empty() and self.allow_forwarding == True:
                         self.allow_forwarding = False
-                        print("Queue cleared. Forwarding disabled until next Tab press.")
+                        self.root.deiconify()
+                        time.sleep(0.5)
+                        self.update_screen()
                         
                 except queue.Empty:
                     continue
@@ -467,7 +482,6 @@ class DiscreteScreenFilter:
             
             # Restore passthrough
             self.passthrough_active = old_passthrough
-            
             print("✅ Screen updated!")
             
         except Exception as e:
