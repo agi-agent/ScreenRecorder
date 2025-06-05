@@ -5,8 +5,18 @@ import sys
 import time
 import threading
 import queue
+import datetime
+def log_queue(msg):
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    print(f"[{timestamp}] {msg}")
 
 class DiscreteScreenFilter:
+    def enqueue_event(self, event_type, event_data):
+        log_queue(f"Queue before adding: {list(self.event_queue.queue)}")
+        self.event_queue.put((event_type, event_data))
+        log_queue(f"Queue after adding: {list(self.event_queue.queue)}")
+
+
     def __init__(self):
         print("Creating discrete screen filter...")
         # Disable pyautogui failsafe
@@ -86,12 +96,18 @@ class DiscreteScreenFilter:
         current_x, current_y = pyautogui.position()
         
         # Queue the mouse event for forwarding
-        self.event_queue.put(('mouse_click', {
+        # self.event_queue.put(('mouse_click', {
+        #     'button': event.num,
+        #     'x': current_x,
+        #     'y': current_y,
+        #     'type': event.type
+        # }))
+        self.enqueue_event('mouse_click', {
             'button': event.num,
             'x': current_x,
             'y': current_y,
             'type': event.type
-        }))
+        })
     
 
     def on_mouse_wheel(self, event):
@@ -99,11 +115,16 @@ class DiscreteScreenFilter:
         if not self.passthrough_active:
             return
             
-        self.event_queue.put(('mouse_scroll', {
+        # self.event_queue.put(('mouse_scroll', {
+        #     'delta': event.delta,
+        #     'x': event.x_root,
+        #     'y': event.y_root
+        # }))
+        self.enqueue_event('mouse_scroll', {
             'delta': event.delta,
             'x': event.x_root,
             'y': event.y_root
-        }))
+        })
     
     def on_key_event(self, event):
         """Handle keyboard events"""
@@ -115,12 +136,18 @@ class DiscreteScreenFilter:
             return
             
         # Queue keyboard event for forwarding  
-        self.event_queue.put(('key', {
+        # self.event_queue.put(('key', {
+        #     'key': event.keysym,
+        #     'char': event.char,
+        #     'type': event.type,
+        #     'state': event.state
+        # }))
+        self.enqueue_event('key', {
             'key': event.keysym,
             'char': event.char,
             'type': event.type,
             'state': event.state
-        }))
+        })
     
     def is_control_click(self, event):
         """Check if this is a control area click"""
@@ -165,7 +192,10 @@ class DiscreteScreenFilter:
         def forward_events():
             while True:
                 try:
+                    print(f"Queue before removing: {list(self.event_queue.queue)}")
                     event_type, event_data = self.event_queue.get(timeout=0.1)
+                    print(f"Dequeued: ({event_type}, {event_data})")
+                    print(f"Queue after removing: {list(self.event_queue.queue)}")
                     
                     if event_type == 'mouse_click':
                         self.forward_mouse_click(event_data)

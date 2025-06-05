@@ -39,3 +39,8 @@ loop forever:
     # Step 5: Save actions to file
     save_actions_to_file(recorded_actions)
 ```
+
+## Changelog
+
+1. fix bugs in screenshot capture
+Screenshot was not updated properly and sleep time is not enough.
