@@ -12,6 +12,8 @@ def log_queue(msg):
     timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
     print(f"[{timestamp}] {msg}")
 
+delta_fix = 40
+
 class DiscreteScreenFilter:
     def enqueue_event(self, event_type, event_data):
         if self.allow_forwarding:
@@ -307,7 +309,7 @@ class DiscreteScreenFilter:
         """Forward mouse click using pyautogui"""
         try:
 
-            x, y = event_data['x'], event_data['y']
+            x, y = event_data['x'], event_data['y'] - delta_fix
             button = event_data['button']
             event_type = event_data['type']
             
@@ -321,9 +323,9 @@ class DiscreteScreenFilter:
             # Forward the click without moving mouse
             if str(event_type) == '4':  # ButtonPress
                 print(f"str(event_type) = {event_type}, button = {button_name}, at ({x}, {y})")
-                pyautogui.mouseDown(button=button_name)
+                pyautogui.mouseDown(x=x, y=y, button=button_name)
             elif str(event_type) == '5':  # ButtonRelease  
-                pyautogui.mouseUp(button=button_name)
+                pyautogui.mouseUp(x=x, y=y, button=button_name)
                 print(f"str(event_type) = {event_type}, button = {button_name}, at ({x}, {y})")
                 
         except Exception as e:
@@ -427,6 +429,9 @@ class DiscreteScreenFilter:
             self.photo = ImageTk.PhotoImage(screenshot)
             self.canvas.delete("all")
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
+            # image_id = self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
+            # bbox = self.canvas.bbox(image_id)
+            # print(f"📸 Image shown at canvas coordinates: {bbox}")
             
             # Add control hint overlay
             self.canvas.create_rectangle(0, 0, 100, 50, fill="black", stipple="gray25")
@@ -436,6 +441,11 @@ class DiscreteScreenFilter:
                 fill="white",
                 font=("Arial", 10)
             )
+
+            self.root.lift()
+            self.root.attributes('-topmost', True)
+            self.root.focus_force()
+            self.canvas.focus_set()
             
             print("✅ Initial screenshot displayed!")
             print("Ready! All clicks and keys will be forwarded to applications")
