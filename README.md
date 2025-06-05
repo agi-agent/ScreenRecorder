@@ -42,7 +42,6 @@ loop forever:
 
 ## Changelog
 
-
 - Replaced Tkinter's key event bindings with `pynput` global keyboard listener as Tkinter fails on ratina displays.
 - Added `start_keyboard_listener()` to handle global key presses and releases.
 - Implemented `handle_control_keys_pynput()` to detect control keys like `F5`, `F6`, `Tab`, and `Ctrl+Q` with appropriate actions.
@@ -55,9 +54,6 @@ loop forever:
 - Resized screenshots using `Image.Resampling.LANCZOS` and calculated scaled width and height to match canvas properly.
 - Hid the application window before taking screenshots and re-shown it afterward to avoid capturing the overlay itself.
 - Used `focus_force()`, `lift()`, and `canvas.focus_set()` to ensure keyboard focus returns to the canvas after updates.
-- Logged mouse click forwarding details including type, coordinates, and button name for debugging purposes.
-- Logged keyboard forwarding key type and state for debugging.
-- Safely accessed `event_queue.queue` using `with self.event_queue.mutex` to avoid threading issues when writing to file.
 - Automatically updated the screenshot after event forwarding is finished and restored the overlay interface.
 
 ## TODO
