@@ -5,6 +5,7 @@ import sys
 import time
 import threading
 import queue
+from pynput import keyboard 
 import datetime
 def log_queue(msg):
     timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
@@ -59,6 +60,7 @@ class DiscreteScreenFilter:
         # Bind all events to our handlers
         self.setup_event_capture()
         
+        self.allow_forwarding = False
         # Start event forwarding thread
         self.start_event_forwarding()
         
@@ -67,25 +69,23 @@ class DiscreteScreenFilter:
         
     def setup_event_capture(self):
         """Capture mouse clicks and keyboard events (no mouse movement)"""
-        # Capture mouse clicks only (not movement)
-        self.root.bind('<Button-1>', self.on_mouse_event)
-        self.root.bind('<Button-2>', self.on_mouse_event)  
-        self.root.bind('<Button-3>', self.on_mouse_event)
-        self.root.bind('<ButtonRelease-1>', self.on_mouse_event)
-        self.root.bind('<ButtonRelease-2>', self.on_mouse_event)
-        self.root.bind('<ButtonRelease-3>', self.on_mouse_event)
-        self.root.bind('<MouseWheel>', self.on_mouse_wheel)
+        # Capture mouse events on the canvas only
+        for btn in [1, 2, 3]:
+            self.canvas.bind(f'<Button-{btn}>', self.on_mouse_event)
+            self.canvas.bind(f'<ButtonRelease-{btn}>', self.on_mouse_event)
+        self.canvas.bind('<MouseWheel>', self.on_mouse_wheel)
         
         # Capture keyboard events
-        self.root.bind('<KeyPress>', self.on_key_event)
-        self.root.bind('<KeyRelease>', self.on_key_event)
+        self.canvas.bind('<KeyPress>', self.on_key_event)
+        self.canvas.bind('<KeyRelease>', self.on_key_event)
         
-        self.root.focus_set()
+        # self.canvas.focus_set()
+        self.canvas.focus_force()
     
     def on_mouse_event(self, event):
         """Handle mouse click events"""
-        if not self.passthrough_active:
-            return
+        # if not self.passthrough_active:
+        #     return
             
         # Check for our control keys first
         if self.is_control_click(event):
@@ -96,12 +96,6 @@ class DiscreteScreenFilter:
         current_x, current_y = pyautogui.position()
         
         # Queue the mouse event for forwarding
-        # self.event_queue.put(('mouse_click', {
-        #     'button': event.num,
-        #     'x': current_x,
-        #     'y': current_y,
-        #     'type': event.type
-        # }))
         self.enqueue_event('mouse_click', {
             'button': event.num,
             'x': current_x,
@@ -114,12 +108,7 @@ class DiscreteScreenFilter:
         """Handle mouse wheel events"""
         if not self.passthrough_active:
             return
-            
-        # self.event_queue.put(('mouse_scroll', {
-        #     'delta': event.delta,
-        #     'x': event.x_root,
-        #     'y': event.y_root
-        # }))
+        
         self.enqueue_event('mouse_scroll', {
             'delta': event.delta,
             'x': event.x_root,
@@ -128,20 +117,15 @@ class DiscreteScreenFilter:
     
     def on_key_event(self, event):
         """Handle keyboard events"""
+        print(f"[KEY EVENT] keysym={event.keysym}, char={event.char}, type={event.type}, state={event.state}")
         # Check for our control keys first
         if self.handle_control_keys(event):
             return
         
-        if not self.passthrough_active:
-            return
+        # if not self.passthrough_active:
+        #     return
             
         # Queue keyboard event for forwarding  
-        # self.event_queue.put(('key', {
-        #     'key': event.keysym,
-        #     'char': event.char,
-        #     'type': event.type,
-        #     'state': event.state
-        # }))
         self.enqueue_event('key', {
             'key': event.keysym,
             'char': event.char,
@@ -173,36 +157,48 @@ class DiscreteScreenFilter:
     def handle_control_keys(self, event):
         """Handle our control key combinations"""
         if event.type == '2':  # KeyPress
-            # Ctrl+Q to quit
-            if event.state & 0x4 and event.keysym.lower() == 'q':
-                self.quit_app()
+            if event.keysym == 'F5':
+                print("F5 detected")
+                self.update_screen()
                 return True
-            # F5 to update
-            elif event.keysym == 'F5':
-                self.update_screen() 
-                return True
-            # F6 to toggle passthrough
             elif event.keysym == 'F6':
+                print("F6 detected")
                 self.toggle_passthrough()
                 return True
+            elif event.keysym == 'Tab':
+                print("Tab pressed, forwarding will now begin.")
+                self.allow_forwarding = True
+                return True
+            elif event.keysym.lower() == 'q' and (event.state & 0x4):  # Ctrl + Q
+                print("Ctrl+Q detected. Exiting.")
+                self.quit_app()
+                return True
         return False
+
     
     def start_event_forwarding(self):
         """Start the event forwarding thread"""
         def forward_events():
             while True:
                 try:
-                    print(f"Queue before removing: {list(self.event_queue.queue)}")
-                    event_type, event_data = self.event_queue.get(timeout=0.1)
-                    print(f"Dequeued: ({event_type}, {event_data})")
-                    print(f"Queue after removing: {list(self.event_queue.queue)}")
+
+                    # print(f"Queue before removing: {list(self.event_queue.queue)}")
+                    if self.allow_forwarding:
+                        print(f"Allow forwarding: {self.allow_forwarding}")
+                        event_type, event_data = self.event_queue.get(timeout=0.1)
+                        print(f"Dequeued: ({event_type}, {event_data})")
+                        print(f"Queue after removing: {list(self.event_queue.queue)}")
                     
-                    if event_type == 'mouse_click':
-                        self.forward_mouse_click(event_data)
-                    elif event_type == 'mouse_scroll':
-                        self.forward_mouse_scroll(event_data)
-                    elif event_type == 'key':
-                        self.forward_key_event(event_data)
+                        if event_type == 'mouse_click':
+                            self.forward_mouse_click(event_data)
+                        elif event_type == 'mouse_scroll':
+                            self.forward_mouse_scroll(event_data)
+                        elif event_type == 'key':
+                            self.forward_key_event(event_data)
+
+                    if self.event_queue.empty():
+                        self.allow_forwarding = False
+                        print("Queue cleared. Forwarding disabled until next Tab press.")
                         
                 except queue.Empty:
                     continue
@@ -216,6 +212,7 @@ class DiscreteScreenFilter:
     def forward_mouse_click(self, event_data):
         """Forward mouse click using pyautogui"""
         try:
+
             x, y = event_data['x'], event_data['y']
             button = event_data['button']
             event_type = event_data['type']
@@ -229,9 +226,11 @@ class DiscreteScreenFilter:
             
             # Forward the click without moving mouse
             if str(event_type) == '4':  # ButtonPress
+                print(f"str(event_type) = {event_type}, button = {button_name}, at ({x}, {y})")
                 pyautogui.mouseDown(button=button_name)
             elif str(event_type) == '5':  # ButtonRelease  
                 pyautogui.mouseUp(button=button_name)
+                print(f"str(event_type) = {event_type}, button = {button_name}, at ({x}, {y})")
                 
         except Exception as e:
             print(f"Mouse click forward error: {e}")
@@ -322,6 +321,7 @@ class DiscreteScreenFilter:
             
             # Show window
             self.root.deiconify()
+            self.root.after(100, lambda: self.canvas.focus_set())
             
             # Process and display
             # screenshot = screenshot.resize((self.width, self.height), Image.Resampling.LANCZOS)
