@@ -12,6 +12,7 @@ def log_queue(msg):
     timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
     print(f"[{timestamp}] {msg}")
 
+#!FIXME
 delta_fix = 40
 
 class DiscreteScreenFilter:
