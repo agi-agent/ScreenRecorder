@@ -63,10 +63,78 @@ class DiscreteScreenFilter:
         self.allow_forwarding = False
         # Start event forwarding thread
         self.start_event_forwarding()
+        self.start_keyboard_listener()
         
         print("Taking initial screenshot...")
         self.root.after(100, self.take_initial_screenshot)
-        
+
+    def handle_control_keys_pynput(self, key, press=True):
+        try:
+            if press:
+                if key == keyboard.Key.f5:
+                    print("F5 detected")
+                    self.update_screen()
+                    return True
+                elif key == keyboard.Key.f6:
+                    print("F6 detected")
+                    self.toggle_passthrough()
+                    return True
+                elif key == keyboard.Key.tab:
+                    print("Tab pressed, forwarding will now begin.")
+                    self.allow_forwarding = True
+                    return True
+                elif key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
+                    self._ctrl_held = True
+                elif hasattr(key, 'char') and key.char and key.char.lower() == 'q' and getattr(self, '_ctrl_held', False):
+                    print("Ctrl+Q detected. Exiting.")
+                    self.quit_app()
+                    return True
+            else:
+                if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
+                    self._ctrl_held = False
+        except:
+            pass
+        return False
+
+    def start_keyboard_listener(self):
+        """Start listening to keyboard events using pynput"""
+        def on_press(key):
+            try:
+                key_str = key.char if hasattr(key, 'char') and key.char else str(key)
+            except:
+                key_str = str(key)
+
+            if self.handle_control_keys_pynput(key, press=True):
+                return
+
+            self.enqueue_event('key', {
+                'key': key_str,
+                'char': getattr(key, 'char', ''),
+                'type': '2',  # KeyPress
+                'state': 0
+            })
+
+        def on_release(key):
+            try:
+                key_str = key.char if hasattr(key, 'char') and key.char else str(key)
+            except:
+                key_str = str(key)
+
+            if self.handle_control_keys_pynput(key, press=False):
+                return
+
+            self.enqueue_event('key', {
+                'key': key_str,
+                'char': getattr(key, 'char', ''),
+                'type': '3',  # KeyRelease
+                'state': 0
+            })
+
+        self.keyboard_listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+        self.keyboard_listener.daemon = True
+        self.keyboard_listener.start()
+
+
     def setup_event_capture(self):
         """Capture mouse clicks and keyboard events (no mouse movement)"""
         # Capture mouse events on the canvas only
@@ -76,8 +144,8 @@ class DiscreteScreenFilter:
         self.canvas.bind('<MouseWheel>', self.on_mouse_wheel)
         
         # Capture keyboard events
-        self.canvas.bind('<KeyPress>', self.on_key_event)
-        self.canvas.bind('<KeyRelease>', self.on_key_event)
+        # self.canvas.bind('<KeyPress>', self.on_key_event)
+        # self.canvas.bind('<KeyRelease>', self.on_key_event)
         
         # self.canvas.focus_set()
         self.canvas.focus_force()
@@ -115,23 +183,23 @@ class DiscreteScreenFilter:
             'y': event.y_root
         })
     
-    def on_key_event(self, event):
-        """Handle keyboard events"""
-        print(f"[KEY EVENT] keysym={event.keysym}, char={event.char}, type={event.type}, state={event.state}")
-        # Check for our control keys first
-        if self.handle_control_keys(event):
-            return
+    # def on_key_event(self, event):
+    #     """Handle keyboard events"""
+    #     print(f"[KEY EVENT] keysym={event.keysym}, char={event.char}, type={event.type}, state={event.state}")
+    #     # Check for our control keys first
+    #     if self.handle_control_keys(event):
+    #         return
         
-        # if not self.passthrough_active:
-        #     return
+    #     # if not self.passthrough_active:
+    #     #     return
             
-        # Queue keyboard event for forwarding  
-        self.enqueue_event('key', {
-            'key': event.keysym,
-            'char': event.char,
-            'type': event.type,
-            'state': event.state
-        })
+    #     # Queue keyboard event for forwarding  
+    #     self.enqueue_event('key', {
+    #         'key': event.keysym,
+    #         'char': event.char,
+    #         'type': event.type,
+    #         'state': event.state
+    #     })
     
     def is_control_click(self, event):
         """Check if this is a control area click"""
@@ -154,26 +222,26 @@ class DiscreteScreenFilter:
         finally:
             menu.grab_release()
     
-    def handle_control_keys(self, event):
-        """Handle our control key combinations"""
-        if event.type == '2':  # KeyPress
-            if event.keysym == 'F5':
-                print("F5 detected")
-                self.update_screen()
-                return True
-            elif event.keysym == 'F6':
-                print("F6 detected")
-                self.toggle_passthrough()
-                return True
-            elif event.keysym == 'Tab':
-                print("Tab pressed, forwarding will now begin.")
-                self.allow_forwarding = True
-                return True
-            elif event.keysym.lower() == 'q' and (event.state & 0x4):  # Ctrl + Q
-                print("Ctrl+Q detected. Exiting.")
-                self.quit_app()
-                return True
-        return False
+    # def handle_control_keys(self, event):
+    #     """Handle our control key combinations"""
+    #     if event.type == '2':  # KeyPress
+    #         if event.keysym == 'F5':
+    #             print("F5 detected")
+    #             self.update_screen()
+    #             return True
+    #         elif event.keysym == 'F6':
+    #             print("F6 detected")
+    #             self.toggle_passthrough()
+    #             return True
+    #         elif event.keysym == 'Tab':
+    #             print("Tab pressed, forwarding will now begin.")
+    #             self.allow_forwarding = True
+    #             return True
+    #         elif event.keysym.lower() == 'q' and (event.state & 0x4):  # Ctrl + Q
+    #             print("Ctrl+Q detected. Exiting.")
+    #             self.quit_app()
+    #             return True
+    #     return False
 
     
     def start_event_forwarding(self):
